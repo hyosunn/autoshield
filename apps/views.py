@@ -1,4 +1,5 @@
 
+from pathlib import Path
 from flask import Blueprint, render_template, request
 import pandas as pd
 import folium
@@ -6,8 +7,9 @@ from folium.plugins import MarkerCluster
 
 views = Blueprint('views', __name__)
 
-# Path to your dataset
-DATASET_PATH = 'C:\VS Codes\Ashield\hello_app\static\data\SFdata.csv'  # Update this path
+BASE_DIR = Path(__file__).parent
+DATASET_PATH = BASE_DIR / 'static' / 'data' / 'SFdata.csv'
+MAP_SAVE_PATH = BASE_DIR / 'static' / 'maps' / 'sf_map.html'
 
 @views.route('/')
 def home():
@@ -45,10 +47,9 @@ def generate_map():
     
     autoBurglaryData.sort_values(by=['incident_date'], inplace=True)
 
-    CleanedData = pd.DataFrame()
-    for index, row in autoBurglaryData.head(12000).iterrows():
-        if row['incident_subcategory'] in ['Motor Vehicle Theft', 'Larceny - From Vehicle']:
-            CleanedData = pd.concat([CleanedData, row.to_frame().transpose()], ignore_index=True)
+    target_categories = ['Motor Vehicle Theft', 'Larceny - From Vehicle']
+    subset = autoBurglaryData.head(12000)
+    CleanedData = subset[subset['incident_subcategory'].isin(target_categories)].reset_index(drop=True)
 
     CleanedData = CleanedData.dropna(subset=['latitude', 'longitude'])
 
@@ -63,5 +64,5 @@ def generate_map():
     for idx, row in CleanedData.iterrows():
         folium.Marker(location=[row['latitude'], row['longitude']]).add_to(marker_cluster)
 
-    # Save the map to an HTML file
-    sf_map.save('C:\VS Codes\Ashield\hello_app\static\maps\sf_map.html')
+    MAP_SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    sf_map.save(MAP_SAVE_PATH)
