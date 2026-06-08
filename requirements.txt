@@ -1,9 +1,0 @@
-pandas
-matplotlib
-numpy
-seaborn
-scipy
-folium
-flask
-requests
-flask-caching

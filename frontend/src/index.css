@@ -1,0 +1,21 @@
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #0f1117;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Make Leaflet map fill its container */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #0f1117;
+}
