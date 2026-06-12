@@ -18,6 +18,15 @@ export default function App() {
   const [error, setError] = useState(null)
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [viewMode, setViewMode] = useState('cluster')
+  const [clusterKey, setClusterKey] = useState(0)
+
+  console.log('viewMode:', viewMode, 'incidents:', incidents.length, 'clusterKey:', clusterKey)
+
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode)
+    if (mode === 'cluster') setClusterKey(prev => prev + 1)
+  }
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -51,7 +60,7 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <Sidebar filters={filters} setFilters={setFilters} viewMode={viewMode} setViewMode={setViewMode} />
+        <Sidebar filters={filters} setFilters={setFilters} viewMode={viewMode} setViewMode={handleSetViewMode} />
 
         {/* Main content: map + chart */}
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -68,7 +77,7 @@ export default function App() {
 
           {/* Map takes up most of the space */}
           <div className="flex-1 min-h-0">
-            <Map incidents={incidents} viewMode={viewMode} />
+            <Map incidents={incidents} viewMode={viewMode} clusterKey={clusterKey} />
           </div>
 
           {/* Trend chart below map */}

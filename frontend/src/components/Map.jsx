@@ -1,39 +1,19 @@
-import { useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
+import { useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, Popup, Marker, useMap } from 'react-leaflet'
+import MarkerClusterGroup from '@changey/react-leaflet-markercluster'
+import '@changey/react-leaflet-markercluster/dist/styles.min.css'
 import L from 'leaflet'
 import 'leaflet.heat'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
-const CATEGORY_COLOR = {
-  'Motor Vehicle Theft': '#ef4444',
-  'Larceny - From Vehicle': '#f97316',
-}
-
-function markerColor(subcategory) {
-  return CATEGORY_COLOR[subcategory] || '#eab308'
-}
-
-function HeatmapLayer({ incidents }) {
-  const map = useMap()
-
-  useEffect(() => {
-    const points = incidents
-      .map(inc => {
-        const lat = parseFloat(inc.latitude)
-        const lng = parseFloat(inc.longitude)
-        return isNaN(lat) || isNaN(lng) ? null : [lat, lng, 1]
-      })
-      .filter(Boolean)
-
-    const layer = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17 })
-    layer.addTo(map)
-    return () => map.removeLayer(layer)
-  }, [incidents, map])
-
-  return null
-}
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+})
 
 function IncidentPopup({ inc }) {
   return (
@@ -46,6 +26,51 @@ function IncidentPopup({ inc }) {
       </div>
     </Popup>
   )
+}
+
+function HeatmapController({ viewMode, incidents }) {
+  const map = useMap()
+  const heatLayerRef = useRef(null)
+
+  useEffect(() => {
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current)
+      heatLayerRef.current = null
+    }
+
+    if (viewMode !== 'heatmap') return
+
+    const addHeatLayer = () => {
+      const container = map.getContainer()
+      if (!container.offsetWidth || !container.offsetHeight) return
+
+      const points = incidents
+        .map(inc => {
+          const lat = parseFloat(inc.latitude)
+          const lng = parseFloat(inc.longitude)
+          return isNaN(lat) || isNaN(lng) ? null : [lat, lng, 1]
+        })
+        .filter(Boolean)
+
+      try {
+        heatLayerRef.current = L.heatLayer(points, { radius: 25, blur: 15, maxZoom: 17 })
+        heatLayerRef.current.addTo(map)
+      } catch (e) {
+        // swallow zero-size canvas error during initial render
+      }
+    }
+
+    map.whenReady(addHeatLayer)
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current)
+        heatLayerRef.current = null
+      }
+    }
+  }, [viewMode, incidents, map])
+
+  return null
 }
 
 export default function Map({ incidents, viewMode = 'cluster' }) {
@@ -62,9 +87,9 @@ export default function Map({ incidents, viewMode = 'cluster' }) {
         subdomains="abcd"
         maxZoom={19}
       />
-
+      <HeatmapController viewMode={viewMode} incidents={incidents} />
       {viewMode === 'cluster' && (
-        <MarkerClusterGroup key={`cluster-${viewMode}`} chunkedLoading>
+        <MarkerClusterGroup chunkedLoading>
           {incidents.map((inc, idx) => {
             const lat = parseFloat(inc.latitude)
             const lng = parseFloat(inc.longitude)
@@ -77,8 +102,6 @@ export default function Map({ incidents, viewMode = 'cluster' }) {
           })}
         </MarkerClusterGroup>
       )}
-
-      {viewMode === 'heatmap' && <HeatmapLayer incidents={incidents} />}
     </MapContainer>
   )
 }

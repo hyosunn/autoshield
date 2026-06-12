@@ -8,4 +8,7 @@ export default defineConfig({
       '/api': 'http://localhost:5001',
     },
   },
+  optimizeDeps: {
+    include: ['@changey/react-leaflet-markercluster', 'leaflet.markercluster'],
+  },
 })
