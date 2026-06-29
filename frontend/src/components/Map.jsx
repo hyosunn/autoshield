@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Popup, Marker, useMap } from 'react-leaflet'
-import MarkerClusterGroup from '@changey/react-leaflet-markercluster'
+import _MarkerClusterGroup from '@changey/react-leaflet-markercluster'
+const MarkerClusterGroup = _MarkerClusterGroup.default ?? _MarkerClusterGroup
 import '@changey/react-leaflet-markercluster/dist/styles.min.css'
 import L from 'leaflet'
 import 'leaflet.heat'
