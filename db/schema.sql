@@ -25,16 +25,23 @@ CREATE TABLE IF NOT EXISTS neighborhoods (
     -- The polygon (or set of polygons) that defines the neighborhood border.
     boundary        GEOGRAPHY(MULTIPOLYGON, 4326) NOT NULL,
 
-    -- risk_score is recomputed periodically from incident data.
-    -- NUMERIC(5,2) holds values like 999.99 — five digits, two after the
-    -- decimal. DEFAULT 0 until the first scoring run has been performed.
-    risk_score      NUMERIC(5,2)  DEFAULT 0,
+    -- Two independent percentile-rank scores (0–100) recomputed by
+    -- scripts/compute_risk_scores.py.  See docs/risk-scoring-design.md for
+    -- the full algorithm (decay, Bayes shrinkage, area normalisation).
+    -- DEFAULT 0 until the first scoring run has been performed.
+    parking_risk_score    NUMERIC(5,2) DEFAULT 0,
+    pedestrian_risk_score NUMERIC(5,2) DEFAULT 0,
+
+    -- True when fewer than 5 qualifying incidents were available for this
+    -- neighborhood in the scoring window; the score is shrunk toward the
+    -- citywide mean and the flag is exposed in the API for UI transparency.
+    low_sample      BOOLEAN DEFAULT FALSE,
 
     -- Denormalised count kept in sync when incidents are loaded, so the
     -- frontend can display it without a COUNT() query each time.
-    incident_count  INTEGER       DEFAULT 0,
+    incident_count  INTEGER DEFAULT 0,
 
-    last_updated    TIMESTAMP     DEFAULT NOW()
+    last_updated    TIMESTAMP DEFAULT NOW()
 );
 
 -- GiST (Generalized Search Tree) is the index type PostGIS requires for
@@ -59,18 +66,18 @@ CREATE TABLE IF NOT EXISTS incidents (
     -- we can re-run the ingestion script without creating duplicates.
     incident_id     TEXT UNIQUE NOT NULL,
 
-    -- Broad crime category (e.g. "THEFT", "ASSAULT") from the source API.
+    -- Broad crime category as it appears in the SFPD Socrata feed.
+    -- The five categories used by the scoring algorithm are:
+    --   Motor Vehicle Theft, Larceny - From Vehicle  (incident_subcategory)
+    --   Burglary, Robbery, Assault                   (incident_category)
     category        TEXT NOT NULL,
-
-    -- Free-text description of the specific incident.
-    description     TEXT,
 
     incident_date   TIMESTAMP NOT NULL,
 
-    -- A multiplier applied when computing a neighborhood's risk_score.
-    -- Violent crimes might get 1.5 while minor infractions get 0.5.
-    -- NUMERIC(3,2) covers the range 0.00–9.99.
-    severity_weight NUMERIC(3,2) NOT NULL,
+    -- Severity weights are applied at scoring time (in compute_risk_scores.py),
+    -- not stored per-row — so scores can be recomputed with revised weights
+    -- without re-ingesting raw data.  This column is reserved for future use.
+    severity_weight NUMERIC(3,2) NOT NULL DEFAULT 1.0,
 
     -- Single lat/lng point. Same GEOGRAPHY/WGS-84 rationale as boundary above.
     location        GEOGRAPHY(POINT, 4326) NOT NULL,
@@ -90,6 +97,21 @@ CREATE INDEX IF NOT EXISTS idx_incidents_location
     USING GIST (location);
 
 -- B-tree index on the date column — used by queries that filter by time range,
--- e.g. "incidents in the last 30 days" for rolling risk-score windows.
+-- e.g. "incidents in the last 36 months" for rolling risk-score windows.
 CREATE INDEX IF NOT EXISTS idx_incidents_date
     ON incidents (incident_date);
+
+
+-- ── migration: apply to an existing database ──────────────────────────────────
+--
+-- The blocks below are no-ops on a fresh schema (the columns already exist).
+-- Run the full file against an existing DB to pick up the schema changes.
+
+ALTER TABLE neighborhoods
+    ADD COLUMN IF NOT EXISTS parking_risk_score    NUMERIC(5,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS pedestrian_risk_score NUMERIC(5,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS low_sample            BOOLEAN      DEFAULT FALSE;
+
+-- Drop the old single-axis column if it survived from an earlier schema version.
+ALTER TABLE neighborhoods
+    DROP COLUMN IF EXISTS risk_score;
