@@ -11,6 +11,14 @@ views = Blueprint('views', __name__)
 
 API_URL = 'https://data.sfgov.org/resource/wg3w-h783.json'
 
+VALID_CATEGORIES = {
+    'Motor Vehicle Theft',
+    'Larceny - From Vehicle',
+    'Burglary',
+    'Robbery',
+    'Assault',
+}
+
 DATE_RANGE_DAYS = {
     '1month': 30,
     '3months': 90,
@@ -52,6 +60,7 @@ def _build_where(date_range, days, times, categories):
 
     # Categories
     if categories:
+        categories = [c for c in categories if c in VALID_CATEGORIES]
         quoted = ', '.join(f"'{c}'" for c in categories)
         clauses.append(f'incident_subcategory in({quoted})')
     else:

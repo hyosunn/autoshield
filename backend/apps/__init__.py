@@ -10,6 +10,7 @@ def create_app():
     app.config['CACHE_DEFAULT_TIMEOUT'] = 3600
 
     cache.init_app(app)
+    # origins='*' is intentional for local dev — restrict before any public deployment
     CORS(app, resources={r'/api/*': {'origins': '*'}})
 
     with app.app_context():
