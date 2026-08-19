@@ -11,13 +11,29 @@ views = Blueprint('views', __name__)
 
 API_URL = 'https://data.sfgov.org/resource/wg3w-h783.json'
 
-VALID_CATEGORIES = {
+# The dataset splits crime types across two fields: the vehicle types we expose
+# are incident_subcategory values, while Burglary/Robbery/Assault only appear as
+# incident_category (their subcategories are 'Burglary - Commercial',
+# 'Simple Assault', etc). Filtering everything on incident_subcategory matched
+# nothing for the latter group. Step 2's ingestion should import these sets so
+# the taxonomy stays in one place.
+SUBCATEGORY_VALUES = {
     'Motor Vehicle Theft',
     'Larceny - From Vehicle',
+}
+
+CATEGORY_VALUES = {
     'Burglary',
     'Robbery',
     'Assault',
 }
+
+VALID_CATEGORIES = SUBCATEGORY_VALUES | CATEGORY_VALUES
+
+# Used when nothing is selected, or nothing selected is recognised.
+DEFAULT_CATEGORY_CLAUSE = (
+    "incident_subcategory in('Motor Vehicle Theft','Larceny - From Vehicle')"
+)
 
 DATE_RANGE_DAYS = {
     '1month': 30,
@@ -58,16 +74,21 @@ def _build_where(date_range, days, times, categories):
         if time_clauses:
             clauses.append('(' + ' OR '.join(time_clauses) + ')')
 
-    # Categories
-    if categories:
-        categories = [c for c in categories if c in VALID_CATEGORIES]
-        quoted = ', '.join(f"'{c}'" for c in categories)
-        clauses.append(f'incident_subcategory in({quoted})')
+    # Categories — split the selection across both fields and OR them together
+    selected = [c for c in categories if c in VALID_CATEGORIES]
+    if selected:
+        cat_clauses = []
+        subs = [c for c in selected if c in SUBCATEGORY_VALUES]
+        cats = [c for c in selected if c in CATEGORY_VALUES]
+        if subs:
+            quoted = ', '.join(f"'{c}'" for c in subs)
+            cat_clauses.append(f'incident_subcategory in({quoted})')
+        if cats:
+            quoted = ', '.join(f"'{c}'" for c in cats)
+            cat_clauses.append(f'incident_category in({quoted})')
+        clauses.append('(' + ' OR '.join(cat_clauses) + ')')
     else:
-        # Default: only vehicle crime
-        clauses.append(
-            "incident_subcategory in('Motor Vehicle Theft','Larceny - From Vehicle')"
-        )
+        clauses.append(DEFAULT_CATEGORY_CLAUSE)
 
     return ' AND '.join(clauses)
 

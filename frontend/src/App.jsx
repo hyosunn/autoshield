@@ -38,7 +38,6 @@ export default function App() {
         filters.daysOfWeek.forEach(d => params.append('days', d))
         filters.timeOfDay.forEach(t => params.append('times', t))
         filters.categories.forEach(c => params.append('categories', c))
-ok 
         const res = await axios.get(`/api/incidents?${params.toString()}`)
         if (res.data.error) throw new Error(res.data.error)
         setIncidents(res.data)
