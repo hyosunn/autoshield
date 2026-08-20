@@ -25,7 +25,12 @@ const VIEW_MODES = [
   { key: 'heatmap',  label: 'Heatmap'  },
 ]
 
-export default function Sidebar({ filters, setFilters, viewMode, setViewMode }) {
+const RISK_AXES = [
+  { key: 'parking',    label: 'Parking'    },
+  { key: 'pedestrian', label: 'Pedestrian' },
+]
+
+export default function Sidebar({ filters, setFilters, viewMode, setViewMode, riskAxis, setRiskAxis }) {
   const set = (key, val) => setFilters(f => ({ ...f, [key]: val }))
 
   return (
@@ -50,6 +55,28 @@ export default function Sidebar({ filters, setFilters, viewMode, setViewMode }) 
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Neighborhood risk axis */}
+      <div className="space-y-2">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+          Neighborhood Risk
+        </label>
+        <div className="flex rounded overflow-hidden border border-[#2a2d3a]">
+          {RISK_AXES.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setRiskAxis(key)}
+              className={`flex-1 text-xs py-1.5 transition-colors ${
+                riskAxis === key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f1117] text-slate-400 hover:bg-[#2a2d3a]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Date range */}

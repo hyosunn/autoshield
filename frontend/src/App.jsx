@@ -19,6 +19,7 @@ export default function App() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [viewMode, setViewMode] = useState('cluster')
   const [clusterKey, setClusterKey] = useState(0)
+  const [riskAxis, setRiskAxis] = useState('parking')
 
   console.log('viewMode:', viewMode, 'incidents:', incidents.length, 'clusterKey:', clusterKey)
 
@@ -59,7 +60,14 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <Sidebar filters={filters} setFilters={setFilters} viewMode={viewMode} setViewMode={handleSetViewMode} />
+        <Sidebar
+          filters={filters}
+          setFilters={setFilters}
+          viewMode={viewMode}
+          setViewMode={handleSetViewMode}
+          riskAxis={riskAxis}
+          setRiskAxis={setRiskAxis}
+        />
 
         {/* Main content: map + chart */}
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -76,7 +84,7 @@ export default function App() {
 
           {/* Map takes up most of the space */}
           <div className="flex-1 min-h-0">
-            <Map incidents={incidents} viewMode={viewMode} clusterKey={clusterKey} />
+            <Map incidents={incidents} viewMode={viewMode} clusterKey={clusterKey} riskAxis={riskAxis} />
           </div>
 
           {/* Trend chart below map */}

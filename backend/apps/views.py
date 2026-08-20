@@ -1,11 +1,14 @@
+import json
 import os
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
+import psycopg2
 import requests as http
 
 from apps import cache
 
 SOCRATA_TOKEN = os.environ.get('SOCRATA_APP_TOKEN', '')
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
 views = Blueprint('views', __name__)
 
@@ -130,3 +133,54 @@ def get_incidents():
 
     cache.set(cache_key, clean, timeout=3600)
     return jsonify(clean)
+
+
+@views.route('/api/neighborhoods')
+def get_neighborhoods():
+    cache_key = 'neighborhoods'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                id,
+                name,
+                ST_AsGeoJSON(boundary) AS geometry,
+                parking_risk_score,
+                pedestrian_risk_score,
+                low_sample
+            FROM neighborhoods;
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    except psycopg2.Error as e:
+        print(f'Database error: {e}')
+        return jsonify({'error': 'Could not load neighborhood data. Please try again later.'}), 503
+
+    # See docs/risk-scoring-design.md — scores are recomputed by
+    # scripts/compute_risk_scores.py, not queried live here.
+    geojson = {
+        'type': 'FeatureCollection',
+        'features': [
+            {
+                'type': 'Feature',
+                'geometry': json.loads(geometry),
+                'properties': {
+                    'id': neighborhood_id,
+                    'name': name,
+                    'parking_risk_score': float(parking_risk_score),
+                    'pedestrian_risk_score': float(pedestrian_risk_score),
+                    'low_sample': low_sample,
+                },
+            }
+            for neighborhood_id, name, geometry, parking_risk_score, pedestrian_risk_score, low_sample in rows
+        ],
+    }
+
+    cache.set(cache_key, geojson, timeout=3600)
+    return jsonify(geojson)

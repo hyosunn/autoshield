@@ -8,6 +8,7 @@ import 'leaflet.heat'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import NeighborhoodLayer from './NeighborhoodLayer'
 
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -74,7 +75,7 @@ function HeatmapController({ viewMode, incidents }) {
   return null
 }
 
-export default function Map({ incidents, viewMode = 'cluster' }) {
+export default function Map({ incidents, viewMode = 'cluster', riskAxis = 'parking' }) {
   return (
     <MapContainer
       center={[37.77, -122.41]}
@@ -88,6 +89,7 @@ export default function Map({ incidents, viewMode = 'cluster' }) {
         subdomains="abcd"
         maxZoom={19}
       />
+      <NeighborhoodLayer axis={riskAxis} />
       <HeatmapController viewMode={viewMode} incidents={incidents} />
       {viewMode === 'cluster' && (
         <MarkerClusterGroup chunkedLoading>
